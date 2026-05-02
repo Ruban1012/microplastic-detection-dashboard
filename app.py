@@ -1,115 +1,117 @@
 import streamlit as st
-import numpy as np
 from PIL import Image
 import random
 
-# ---------------- PAGE CONFIG ----------------
-st.set_page_config(
-    page_title="Microplastic Detection",
-    page_icon="🌊",
-    layout="wide"
-)
-
-# ---------------- CUSTOM CSS ----------------
-st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(to right, #000000, #0a0a0a);
-    color: white;
-}
-section[data-testid="stSidebar"] {
-    background-color: #111;
-}
-h1, h2, h3 {
-    color: white;
-}
-.success-box {
-    background: #0f5132;
-    padding: 15px;
-    border-radius: 10px;
-}
-.error-box {
-    background: #842029;
-    padding: 15px;
-    border-radius: 10px;
-}
-</style>
-""", unsafe_allow_html=True)
+# ---------------- CONFIG ----------------
+st.set_page_config(page_title="Microplastic AI System", layout="wide")
 
 # ---------------- SIDEBAR ----------------
-st.sidebar.title("📊 Dashboard")
-st.sidebar.markdown("""
-- Upload Image  
-- View Prediction  
-- Analyze Results  
-""")
+st.sidebar.title("🎨 UI Style")
+ui_style = st.sidebar.selectbox(
+    "Choose Style",
+    ["Neon Cyber ⚡", "Dashboard 📊", "Mobile 📱", "Scientific 🧪"]
+)
+
 st.sidebar.markdown("---")
 st.sidebar.info("Model: MobileNet Transfer Learning")
 
+# ---------------- STYLE CSS ----------------
+if "Neon" in ui_style:
+    st.markdown("""
+    <style>
+    .stApp { background:black; color:#0ff; }
+    h1 { text-align:center; text-shadow:0 0 10px #0ff; }
+    .box { border:2px solid #0ff; padding:20px; box-shadow:0 0 15px #0ff; }
+    </style>
+    """, unsafe_allow_html=True)
+
+elif "Dashboard" in ui_style:
+    st.markdown("""
+    <style>
+    .stApp { background:#0a0a0a; color:white; }
+    </style>
+    """, unsafe_allow_html=True)
+
+elif "Mobile" in ui_style:
+    st.markdown("""
+    <style>
+    .stApp { background:#f2f2f2; color:black; }
+    .card { background:white; padding:20px; border-radius:15px;
+            box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+    </style>
+    """, unsafe_allow_html=True)
+
+elif "Scientific" in ui_style:
+    st.markdown("""
+    <style>
+    .stApp { background:#eef2f7; color:black; }
+    </style>
+    """, unsafe_allow_html=True)
+
 # ---------------- HEADER ----------------
 st.title("🌊 Microplastic Detection System")
-st.markdown("### AI-based Microplastic Classification Dashboard")
+st.markdown("### AI-based Classification Dashboard")
 
-# ---------------- FILE UPLOAD ----------------
-uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+# ---------------- UPLOAD ----------------
+uploaded_file = st.file_uploader("Upload Image", type=["jpg","png","jpeg"])
 
-# ---------------- MAIN LOGIC ----------------
+# ---------------- MAIN ----------------
 if uploaded_file:
 
-    col1, col2 = st.columns([1.2, 1])
+    col1, col2 = st.columns(2)
 
-    # LEFT - IMAGE
+    # IMAGE
     with col1:
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    # RIGHT - RESULT
+    # RESULT
     with col2:
-        st.subheader("🔍 Analysis Result")
 
-        with st.spinner("Analyzing image..."):
+        with st.spinner("Analyzing..."):
+            # 🔥 Replace later with real model
+            prob = random.uniform(0,1)
 
-            # 🔥 TEMP (replace with real model later)
-            prob = random.uniform(0.0, 1.0)
+        # ✅ CORRECT CLASS LOGIC
+        if prob > 0.5:
+            label = "Microplastic"
+            confidence = prob
+        else:
+            label = "Clean Water"
+            confidence = 1 - prob
 
-            # ✅ YOUR CORRECT CLASS LOGIC
-            if prob > 0.5:
-                label = "Microplastic"
-                confidence = prob
+        # ---------------- UI OUTPUT ----------------
+        if "Neon" in ui_style:
+            st.markdown('<div class="box">', unsafe_allow_html=True)
+            st.write(f"⚡ RESULT: {label}")
+            st.metric("Confidence", f"{confidence:.2f}")
+            st.progress(int(confidence*100))
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        elif "Dashboard" in ui_style:
+            colA, colB = st.columns(2)
+            colA.metric("Prediction", label)
+            colB.metric("Confidence", f"{confidence:.2f}")
+            st.progress(int(confidence*100))
+
+        elif "Mobile" in ui_style:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            if label == "Microplastic":
+                st.success("Microplastic Detected")
             else:
-                label = "Clean Water"
-                confidence = 1 - prob
+                st.warning("Clean Water")
+            st.progress(int(confidence*100))
+            st.write(f"Confidence: {confidence:.2f}")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # RESULT DISPLAY
-        if label == "Microplastic":
-            st.markdown(f"""
-            <div class="success-box">
-                <b>Microplastic Detected ✅</b>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="error-box">
-                <b>Clean Water Detected ❌</b>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # CONFIDENCE
-        st.markdown("### 📊 Confidence Score")
-        st.metric("Confidence", f"{confidence:.2f}")
-        st.progress(int(confidence * 100))
-
-        # INTERPRETATION
-        st.markdown("### 🧪 Interpretation")
-        if label == "Microplastic":
-            st.write("The sample likely contains microplastic particles.")
-        else:
-            st.write("The sample appears to be clean water without microplastics.")
-
-        # NOTE
-        st.markdown("### ⚠️ Note")
-        st.info("This prediction is based on AI analysis. For accurate validation, laboratory testing is recommended.")
+        elif "Scientific" in ui_style:
+            st.subheader("Result")
+            st.write(label)
+            st.subheader("Confidence")
+            st.write(f"{confidence:.2f}")
+            st.subheader("Conclusion")
+            st.write("AI-based analysis completed.")
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.markdown("© 2026 Microplastic Detection System | Built with Streamlit")
+st.markdown("© 2026 Microplastic AI System")
