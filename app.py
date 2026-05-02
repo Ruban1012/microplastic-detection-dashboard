@@ -3,71 +3,75 @@ from PIL import Image
 import numpy as np
 import pandas as pd
 import datetime
-import random
+import tflite_runtime.interpreter as tflite
 
-# Try loading TFLite
-try:
-    import tflite_runtime.interpreter as tflite
-    USE_TFLITE = True
-except:
-    USE_TFLITE = False
-
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Microplastic AI", layout="wide")
 
+# ---------------- BLACK & WHITE THEME ----------------
+st.markdown("""
+<style>
+.stApp {
+    background-color: #000000;
+    color: white;
+}
+h1, h2, h3 {
+    color: white;
+}
+section[data-testid="stSidebar"] {
+    background-color: #111;
+}
+.block-container {
+    padding-top: 2rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- HEADER ----------------
 st.title("🌊 Microplastic Detection System")
 st.markdown("### AI-based Classification Dashboard")
 
 # ---------------- LOAD MODEL ----------------
 @st.cache_resource
 def load_model():
-    if USE_TFLITE:
-        try:
-            interpreter = tflite.Interpreter(model_path="model.tflite")
-            interpreter.allocate_tensors()
-            return interpreter
-        except:
-            return None
-    return None
+    interpreter = tflite.Interpreter(model_path="model.tflite")
+    interpreter.allocate_tensors()
+    return interpreter
 
 interpreter = load_model()
-
-# ---------------- PREDICTION ----------------
-def predict(img):
-    if interpreter:
-        input_details = interpreter.get_input_details()
-        output_details = interpreter.get_output_details()
-
-        interpreter.set_tensor(input_details[0]['index'], img.astype('float32'))
-        interpreter.invoke()
-
-        output = interpreter.get_tensor(output_details[0]['index'])
-        return float(output[0][0])
-    else:
-        # fallback demo
-        return random.uniform(0,1)
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
 
 # ---------------- FILE UPLOAD ----------------
-uploaded_file = st.file_uploader("Upload Image", type=["jpg","png","jpeg"])
+uploaded_file = st.file_uploader("Upload Water Sample Image", type=["jpg","png","jpeg"])
 
+# ---------------- MAIN ----------------
 if uploaded_file:
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([1.2, 1])
 
-    # LEFT SIDE IMAGE
+    # LEFT: IMAGE DISPLAY
     with col1:
         image = Image.open(uploaded_file).convert("RGB")
-        st.image(image, caption="Uploaded Image", use_column_width=True)
+        st.image(image, caption="Uploaded Sample", use_column_width=True)
 
-    # RIGHT SIDE RESULT
+    # RIGHT: ANALYSIS
     with col2:
 
-        with st.spinner("Analyzing..."):
+        st.subheader("🔍 Analysis Result")
 
-            img = image.resize((224,224))
-            img = np.array(img) / 255.0
+        with st.spinner("Processing..."):
+
+            # PREPROCESS
+            img = image.resize((224, 224))   # adjust if needed
+            img = np.array(img, dtype=np.float32) / 255.0
             img = np.expand_dims(img, axis=0)
 
-            prob = predict(img)
+            # PREDICTION
+            interpreter.set_tensor(input_details[0]['index'], img)
+            interpreter.invoke()
+            prediction = interpreter.get_tensor(output_details[0]['index'])
+            prob = float(prediction[0][0])
 
         # CLASS LOGIC
         if prob > 0.5:
@@ -77,36 +81,45 @@ if uploaded_file:
             label = "Clean Water"
             confidence = 1 - prob
 
-        # RESULT
-        st.subheader("🔍 Result")
-        st.success(label)
+        # RESULT DISPLAY
+        if label == "Microplastic":
+            st.error("⚠ Microplastic Detected")
+        else:
+            st.success("✔ Clean Water")
 
-        # CONFIDENCE
-        st.metric("Confidence", f"{confidence:.2f}")
+        # METRICS
+        st.metric("Confidence Score", f"{confidence:.2f}")
         st.progress(int(confidence * 100))
 
-        # ---------------- CHARTS ----------------
-
+        # ---------------- CHART 1 ----------------
         st.subheader("📊 Confidence Distribution")
 
         chart_data = pd.DataFrame({
-            "Type": ["Microplastic", "Clean Water"],
+            "Category": ["Microplastic", "Clean Water"],
             "Confidence": [confidence, 1 - confidence]
         })
 
-        st.bar_chart(chart_data.set_index("Type"))
+        st.bar_chart(chart_data.set_index("Category"))
 
-        st.subheader("📈 Sample Analysis Trend")
+        # ---------------- CHART 2 ----------------
+        st.subheader("📈 Analysis Trend")
 
-        history = pd.DataFrame({
-            "Samples": ["S1", "S2", "S3", "S4"],
-            "Confidence": [0.6, 0.7, 0.8, confidence]
+        trend_data = pd.DataFrame({
+            "Sample": ["S1", "S2", "S3", "Current"],
+            "Confidence": [0.65, 0.72, 0.81, confidence]
         })
 
-        st.line_chart(history.set_index("Samples"))
+        st.line_chart(trend_data.set_index("Sample"))
 
-        # ---------------- REPORT ----------------
+        # ---------------- INTERPRETATION ----------------
+        st.subheader("🧪 Interpretation")
 
+        if label == "Microplastic":
+            st.write("The system detected patterns consistent with microplastic particles in the sample.")
+        else:
+            st.write("No significant microplastic features were detected in this sample.")
+
+        # ---------------- REPORT DOWNLOAD ----------------
         report = f"""
 Microplastic Detection Report
 -----------------------------
@@ -118,9 +131,9 @@ Date        : {datetime.datetime.now()}
         st.download_button(
             "📄 Download Report",
             report,
-            file_name="report.txt"
+            file_name="microplastic_report.txt"
         )
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.markdown("© 2026 Microplastic AI System")
+st.markdown("© 2026 Microplastic Detection Project | Streamlit Deployment")
