@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 from PIL import Image
 from tensorflow.keras.models import load_model
+import os
 
 # ------------------ PAGE CONFIG ------------------
 st.set_page_config(page_title="Microplastic Detection", layout="wide")
@@ -15,13 +16,13 @@ st.markdown("""
     background-color: #000000;
     color: #FFFFFF;
 }
-h1, h2, h3, h4 {
+h1, h2, h3 {
     color: white;
 }
 .stButton>button {
     background-color: white;
     color: black;
-    border-radius: 10px;
+    border-radius: 8px;
 }
 section[data-testid="stSidebar"] {
     background-color: #111111;
@@ -42,8 +43,8 @@ page = st.sidebar.radio("Go to", ["Home", "Detection", "Analytics", "About"])
 
 # ------------------ HOME ------------------
 if page == "Home":
-    st.title("⚫ Microplastic Detection Dashboard ⚪")
-    st.write("AI-powered system to detect microplastics in water samples.")
+    st.title("🌊 Microplastic Detection System")
+    st.write("AI-based Microplastic Classification Dashboard")
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Accuracy", "95%")
@@ -69,16 +70,20 @@ elif page == "Detection":
             prediction = model.predict(img)
 
         # Handle both binary & multi-class
-        if prediction.shape[1] == 1:
-            confidence = float(prediction[0][0])
+        try:
+            if prediction.shape[1] == 1:
+                confidence = float(prediction[0][0])
+                label = "Microplastic" if confidence > 0.5 else "No Microplastic"
+            else:
+                class_names = ["No Microplastic", "Microplastic"]
+                pred_index = np.argmax(prediction)
+                confidence = float(np.max(prediction))
+                label = class_names[pred_index]
+        except:
+            confidence = float(prediction[0])
             label = "Microplastic" if confidence > 0.5 else "No Microplastic"
-        else:
-            class_names = ["No Microplastic", "Microplastic"]
-            pred_index = np.argmax(prediction)
-            confidence = np.max(prediction)
-            label = class_names[pred_index]
 
-        # Result display
+        # Display result
         if label == "Microplastic":
             st.success(f"{label} Detected ✅ (Confidence: {confidence:.2f})")
         else:
@@ -106,8 +111,6 @@ elif page == "Analytics":
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("Distribution")
-
     pie = px.pie(
         data,
         names="Category",
@@ -128,10 +131,9 @@ elif page == "About":
 
     Features:
     - Image upload
-        - AI prediction
+    - AI prediction
     - Confidence score
-    - Interactive dashboard
-    - Black & white UI
+    - Dashboard analytics
 
     Built using Streamlit.
     """)
