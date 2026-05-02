@@ -3,102 +3,113 @@ import numpy as np
 from PIL import Image
 import random
 
-# ------------------ PAGE CONFIG ------------------
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="Microplastic Detection",
     page_icon="🌊",
     layout="wide"
 )
 
-# ------------------ CUSTOM CSS (BLACK & WHITE THEME) ------------------
+# ---------------- CUSTOM CSS ----------------
 st.markdown("""
 <style>
 .stApp {
-    background-color: #000000;
+    background: linear-gradient(to right, #000000, #0a0a0a);
     color: white;
+}
+section[data-testid="stSidebar"] {
+    background-color: #111;
 }
 h1, h2, h3 {
     color: white;
 }
-.stButton>button {
-    background-color: white;
-    color: black;
+.success-box {
+    background: #0f5132;
+    padding: 15px;
     border-radius: 10px;
-    font-weight: bold;
 }
-.css-1d391kg {
-    background-color: #111111;
-}
-.block-container {
-    padding-top: 2rem;
-}
-.metric-box {
-    background: #111;
+.error-box {
+    background: #842029;
     padding: 15px;
     border-radius: 10px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ SIDEBAR ------------------
+# ---------------- SIDEBAR ----------------
 st.sidebar.title("📊 Dashboard")
 st.sidebar.markdown("""
 - Upload Image  
 - View Prediction  
 - Analyze Results  
 """)
-
+st.sidebar.markdown("---")
 st.sidebar.info("Model: MobileNet Transfer Learning")
 
-# ------------------ HEADER ------------------
+# ---------------- HEADER ----------------
 st.title("🌊 Microplastic Detection System")
 st.markdown("### AI-based Microplastic Classification Dashboard")
 
-# ------------------ FILE UPLOAD ------------------
+# ---------------- FILE UPLOAD ----------------
 uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
 
-# ------------------ MAIN CONTENT ------------------
+# ---------------- MAIN LOGIC ----------------
 if uploaded_file:
 
-    col1, col2 = st.columns([1, 1])
+    col1, col2 = st.columns([1.2, 1])
 
-    # LEFT SIDE - IMAGE
+    # LEFT - IMAGE
     with col1:
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    # RIGHT SIDE - RESULT
+    # RIGHT - RESULT
     with col2:
         st.subheader("🔍 Analysis Result")
 
         with st.spinner("Analyzing image..."):
 
-            # --------- SIMULATED PREDICTION (SAFE DEPLOY) ---------
-            confidence = random.uniform(0.6, 0.95)
-            label = "Microplastic" if confidence > 0.75 else "No Microplastic"
+            # 🔥 TEMP (replace with real model later)
+            prob = random.uniform(0.0, 1.0)
 
-        # --------- RESULT DISPLAY ---------
+            # ✅ YOUR CORRECT CLASS LOGIC
+            if prob > 0.5:
+                label = "Microplastic"
+                confidence = prob
+            else:
+                label = "Clean Water"
+                confidence = 1 - prob
+
+        # RESULT DISPLAY
         if label == "Microplastic":
-            st.success(f"Microplastic Detected ✅")
+            st.markdown(f"""
+            <div class="success-box">
+                <b>Microplastic Detected ✅</b>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.error(f"No Microplastic ❌")
+            st.markdown(f"""
+            <div class="error-box">
+                <b>Clean Water Detected ❌</b>
+            </div>
+            """, unsafe_allow_html=True)
 
-        # --------- METRICS ---------
-        st.markdown("### 📈 Confidence Score")
-        st.metric(label="Confidence", value=f"{confidence:.2f}")
-
+        # CONFIDENCE
+        st.markdown("### 📊 Confidence Score")
+        st.metric("Confidence", f"{confidence:.2f}")
         st.progress(int(confidence * 100))
 
-        # --------- EXTRA INFO ---------
+        # INTERPRETATION
         st.markdown("### 🧪 Interpretation")
         if label == "Microplastic":
-            st.write("The uploaded sample likely contains microplastic particles based on visual patterns.")
+            st.write("The sample likely contains microplastic particles.")
         else:
-            st.write("No significant microplastic features were detected in the sample.")
+            st.write("The sample appears to be clean water without microplastics.")
 
+        # NOTE
         st.markdown("### ⚠️ Note")
-        st.info("This result is based on AI analysis. For laboratory-grade validation, further testing is recommended.")
+        st.info("This prediction is based on AI analysis. For accurate validation, laboratory testing is recommended.")
 
-# ------------------ FOOTER ------------------
+# ---------------- FOOTER ----------------
 st.markdown("---")
-st.markdown("© 2026 Microplastic Detection Project | Developed using Streamlit")
+st.markdown("© 2026 Microplastic Detection System | Built with Streamlit")
