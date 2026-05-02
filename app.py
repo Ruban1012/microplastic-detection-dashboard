@@ -1,9 +1,22 @@
 import streamlit as st
 from PIL import Image
-import random
+import numpy as np
+from tensorflow.keras.models import load_model
+import datetime
 
 # ---------------- CONFIG ----------------
 st.set_page_config(page_title="Microplastic AI System", layout="wide")
+
+# ---------------- LOAD MODEL ----------------
+@st.cache_resource
+def load_my_model():
+    try:
+        model = load_model("microplastic_model.h5", compile=False)
+        return model
+    except:
+        return None
+
+model = load_my_model()
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.title("🎨 UI Style")
@@ -15,20 +28,13 @@ ui_style = st.sidebar.selectbox(
 st.sidebar.markdown("---")
 st.sidebar.info("Model: MobileNet Transfer Learning")
 
-# ---------------- STYLE CSS ----------------
+# ---------------- CSS STYLES ----------------
 if "Neon" in ui_style:
     st.markdown("""
     <style>
     .stApp { background:black; color:#0ff; }
     h1 { text-align:center; text-shadow:0 0 10px #0ff; }
     .box { border:2px solid #0ff; padding:20px; box-shadow:0 0 15px #0ff; }
-    </style>
-    """, unsafe_allow_html=True)
-
-elif "Dashboard" in ui_style:
-    st.markdown("""
-    <style>
-    .stApp { background:#0a0a0a; color:white; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -60,57 +66,85 @@ if uploaded_file:
 
     col1, col2 = st.columns(2)
 
-    # IMAGE
+    # LEFT: IMAGE
     with col1:
-        image = Image.open(uploaded_file)
+        image = Image.open(uploaded_file).convert("RGB")
         st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    # RESULT
+    # RIGHT: RESULT
     with col2:
 
-        with st.spinner("Analyzing..."):
-            # 🔥 Replace later with real model
-            prob = random.uniform(0,1)
-
-        # ✅ CORRECT CLASS LOGIC
-        if prob > 0.5:
-            label = "Microplastic"
-            confidence = prob
+        if model is None:
+            st.error("⚠ Model not found. Please upload 'microplastic_model.h5' to GitHub.")
         else:
-            label = "Clean Water"
-            confidence = 1 - prob
+            with st.spinner("Analyzing..."):
+
+                # -------- PREPROCESS --------
+                img = image.resize((224, 224))
+                img = np.array(img) / 255.0
+                img = np.expand_dims(img, axis=0)
+
+                # -------- PREDICTION --------
+                prediction = model.predict(img)
+                prob = float(prediction[0][0])
+
+                # -------- LABEL LOGIC --------
+                # 0 = Clean Water, 1 = Microplastic
+                if prob > 0.5:
+                    label = "Microplastic"
+                    confidence = prob
+                else:
+                    label = "Clean Water"
+                    confidence = 1 - prob
 
         # ---------------- UI OUTPUT ----------------
-        if "Neon" in ui_style:
-            st.markdown('<div class="box">', unsafe_allow_html=True)
-            st.write(f"⚡ RESULT: {label}")
-            st.metric("Confidence", f"{confidence:.2f}")
-            st.progress(int(confidence*100))
-            st.markdown('</div>', unsafe_allow_html=True)
+        if model is not None:
 
-        elif "Dashboard" in ui_style:
-            colA, colB = st.columns(2)
-            colA.metric("Prediction", label)
-            colB.metric("Confidence", f"{confidence:.2f}")
-            st.progress(int(confidence*100))
+            if "Neon" in ui_style:
+                st.markdown('<div class="box">', unsafe_allow_html=True)
+                st.write(f"⚡ RESULT: {label}")
+                st.metric("Confidence", f"{confidence:.2f}")
+                st.progress(int(confidence * 100))
+                st.markdown('</div>', unsafe_allow_html=True)
 
-        elif "Mobile" in ui_style:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            if label == "Microplastic":
-                st.success("Microplastic Detected")
-            else:
-                st.warning("Clean Water")
-            st.progress(int(confidence*100))
-            st.write(f"Confidence: {confidence:.2f}")
-            st.markdown('</div>', unsafe_allow_html=True)
+            elif "Dashboard" in ui_style:
+                colA, colB = st.columns(2)
+                colA.metric("Prediction", label)
+                colB.metric("Confidence", f"{confidence:.2f}")
+                st.progress(int(confidence * 100))
 
-        elif "Scientific" in ui_style:
-            st.subheader("Result")
-            st.write(label)
-            st.subheader("Confidence")
-            st.write(f"{confidence:.2f}")
-            st.subheader("Conclusion")
-            st.write("AI-based analysis completed.")
+            elif "Mobile" in ui_style:
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                if label == "Microplastic":
+                    st.success("Microplastic Detected")
+                else:
+                    st.warning("Clean Water")
+                st.progress(int(confidence * 100))
+                st.write(f"Confidence: {confidence:.2f}")
+                st.markdown('</div>', unsafe_allow_html=True)
+
+            elif "Scientific" in ui_style:
+                st.subheader("Result")
+                st.write(label)
+                st.subheader("Confidence")
+                st.write(f"{confidence:.2f}")
+                st.subheader("Conclusion")
+                st.write("AI-based classification completed.")
+
+            # ---------------- DOWNLOAD REPORT ----------------
+            report = f"""
+Microplastic Detection Report
+-----------------------------
+Result      : {label}
+Confidence  : {confidence:.2f}
+Date        : {datetime.datetime.now()}
+"""
+
+            st.download_button(
+                "📄 Download Report",
+                report,
+                file_name="report.txt"
+            )
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
